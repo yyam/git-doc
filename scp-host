@@ -1,0 +1,2 @@
+scp -pr -P 222 pages/* apache@test02.knowd.co.jp:/var/lib/dokuwiki/data/pages/git-docs
+scp -pr -P 222 media/* apache@test02.knowd.co.jp:/var/lib/dokuwiki/data/media/git-docs

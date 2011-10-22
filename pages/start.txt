@@ -1,0 +1,844 @@
+====== はじめに ======
+本プロジェクトのドキュメントは、[[http://www.dokuwiki.org/ja:syntax|DokuWiki Markup]]で記述していきます。
+
+HTMLで記述された文書はタグで覆われ、テキストで読んだときの可読性が下がってしまい、かつ、作成する際にタグの対応について配慮する必要がありますが、Wiki Markup を使用すると文章の元のプレーンな状態を比較的損なわない状態でマークアップを追記できます。
+
+本プロジェクトの構成を、ローカルなDokuWikiシステム上で表示するには、プロジェクトディレクトリ以下のreadme.txtを参照して下さい。
+
+=== 参考ドキュメント ===
+  - {{scm-1.pdf|Linuxセキュリティ RCS}}
+
+====== リンク ======
+[[blanch|ブランチ]]
+
+====== gitとは ======
+[[http://git-scm.com|{{ 01-git-scm.png?400}}]]
+gitは、Linuxの開発者であるLinus氏によって開発された、Linuxカーネルの開発でも使用されているバージョン管理ソフトウェアです。
+
+開発中のプロジェクトのファイルをローカル、またはネットワークを通じてバージョン管理する事が可能になります。gitはこれまで多くのプロジェクトで使用されてきた、CVSやSubversion等などと異なり、中央のリポジトリが必須ではなく、ローカルファイルのみを使いローカルマシンで独立したバージョン管理が可能な仕組みを提供します。
+
+Linux環境のみならず、MacOS, FreeBSD, Windows環境へ移植されています。
+
+
+参考リンク
+  - [[http://git-scm.com|git開発サイト]]
+
+RPMベースのLinuxでは標準リポジトリーからgitを取得できるかもしれません。
+
+**Scientific Linux 6.1での例)**
+
+<code>
+# yum info git
+...
+Name        : git
+Arch        : x86_64
+Version     : 1.7.1
+Release     : 2.el6_0.1
+Size        : 4.6 M
+Repo        : sl
+Summary     : Fast Version Control System
+URL         : http://git-scm.com/
+License     : GPLv2
+Description : Git is a fast, scalable, distributed revision control system with an
+            : unusually rich command set that provides both high-level operations
+            : and full access to internals.
+            : 
+            : The git rpm installs the core tools with minimal dependencies.  To
+            : install all git packages, including tools for integrating with other
+            : SCMs, install the git-all meta-package.
+...
+</code>
+
+
+
+====== git コマンドラインインターフェイス ======
+gitコマンドの書式は、次のようになります。
+<code>
+$ git <COMMAND> [ARGS]
+</code>
+<COMMAND>にはgitのサブコマンドを指定します。
+
+<COMMAND>の一例:
+^ <COMMAND> ^ 概要 ^
+| config | コマンド環境設定 |
+| init | リポジトリの初期化 |
+| var | git変数の表示 |
+| add | インデックスへの追加 |
+| commit | インデックスへのコミット |
+| log | リポジトリーの変更ログの表示　|
+| diff | 特定のリビジョンとの差分の表示 |
+| status | 状態の確認 |
+| help | コマンドのヘルプ |
+
+--help オプションでサポートされている全てのコマンドを表示することができます。また、helpコマンドの引数として調べたいコマンドを指定すると、より詳しいヘルプを得る事が来ます。
+
+initをコマンドを調べる
+<code>
+$ git help init
+...
+GIT-INIT(1)                       Git Manual                       GIT-INIT(1)
+
+NAME
+       git-init - Create an empty git repository or reinitialize an existing one
+
+SYNOPSIS
+       git init [-q | --quiet] [--bare] [--template=<template_directory>]
+       [--shared[=<permissions>]] [directory]
+
+OPTIONS
+       -q, --quiet
+           Only print error and warning messages, all other output will be suppressed.
+...
+</code>
+
+git, git help で得られるコマンドは良く使用するであろう一般的なもののみです。他にも、いくつかのコマンドが用意されているので、完全なドキュメントはオンラインマニュアル(man git)で確認すると良いでしょう。
+
+====== 基本概念 ======
+プロジェクトは、多くのファイルとディレクトリで構成された情報の塊ですが、それらは、ファイルの追加/更新/削除がなされ、変化していきます。gitでは、それら変化の歴史を任意のタイミングで記録していきます。記録された情報の変遷を辿ることができ、かつ自在に復元できます。
+
+開発者は、新しくプロジェクトを立ち上げたり、あるいは既存のプロジェクトを入手し、過去の歴史を参考にしつつ、このプロジェクトに対して新たな歴史を加えていくことになります。
+
+開発の過程で、様々なコーディングをはじめ、テスト、デバッグ、リファクタリング等の試行錯誤が行われるでしょう。そういった作業は、作業ツリーで行われます。この過程でコミットしてもよいと判断したファイルやディレクトリーを選定し、インデックス（ステージ）に登録しておきます。まだ、コミットすべきではないと判断したものは、インデックスには登録しません。インデックスに登録されていないオブジェクトは、作業ツリー内のみの変更であり、コミットされることはありません。
+
+{{00-git-im.png}}
+
+プロジェクト内の単純な流れ
+  -- 開発者は、オブジェクトを作成します。
+  -- コミットするにふさわしいと判断し、インデックスに追加(add)します。キャッシュされた状態であるとも言います。
+  -- commitにより、"initial commit"というメッセージを添えて保存します。インデックスは削除されます。これが初期リビジョンとなります。
+  -- 開発を進めます。
+  -- コミットすべきオブジェクトをインデックスに追加しますが、この後、更なる検討をしたいので、コミットしません。
+  -- さらに開発を進めます。
+  -- コミットすべき対象ファイルをインデックスに追加します。
+  -- "second commit"というメッセージを添えてコミットします。これが次のリビジョンとなります。
+  -- さらに開発を進めます。
+  
+1と8の状態を取り戻す（リセットする）ことが可能です。9の状態は作業ツリーにだけ存在します。
+  
+
+==== リポジトリー (repository) ====
+gitの管理情報、および、管理対象となっている作業中のファイルやディレクトリー等全てを含む領域を指します。リポジトリー内には、プロジェクトの現在の状態と共にこれまでのコミットが含まれています。
+
+=== コミット (commit) ===
+リポジトリーに対して任意のオブジェクト（ファイル/ディレクトリ）を記録する事、あるいは、記録されたオブジェクトを指します。コミットによって、プロジェクト内のファイルの履歴が確かに保存されることになり、保存された状態にいつでも復元する事が可能です。
+
+コミットには、その変更がどのような内容であるかを、人間が見て分かりやすいような変更の要約となる短いメッセージ（ログ）をつけておく事が必須となっています。
+
+=== インデックス (index) ===
+コミットされる候補となるオブジェクトを指します。開発者は、作業中のファイルの中からコミットに値するファイルを選定して、インデックスに登録しておきます。インデックスに登録されたオブジェクトは、次回のコミットの対象となります。インデックスは、ステージ（stage)とも呼ばれ、コミット対象の選定フェイズとして用いられます。
+
+コミットの後、インデックス情報は破棄されます。
+
+このステージングという段階は、何をコミットすべきか？　というコミットの前の検討に貢献します。
+
+=== 作業ツリー (working tree) ===
+開発者が操作するファイルやディレクトリーを指します。開発者は作業ツリー内のファイルやディレクトリーに対して、追加/更新/削除を行います。開発の過程の任意のタイミングで、コミットすべきオブジェクトを選定し、インデックスに登録し、その後、作業の区切りがついた時点で、コミットします。コミットされる対象はインデックスに登録されたオブジェクトのみです。
+
+====== 初期の流れ ======
+gitでバージョン管理されたプロジェクトを作成するための最初の流れを紹介します。
+  - リポジトリーの初期化
+  - コミット対象ファイルの追加 (add)
+  - 変更の確定 (commit)
+  - ファイルの変更、add, commit...
+ 
+=== 本セクションで使用するコマンドとオプション ===
+^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
+|init | | |gitリポジトリーの初期化。|
+|config|%%--global%%|parameter value| 初期環境設定の.gitconfigに対する永続化。 | 
+|status| | | 最新のコミットと作業ツリーとの比較。|
+|add| | object |インデックスへの追加。|
+|add| -u | | 更新されたオブジェクトをインデックスの追加。新規ファイルは追加されない。 |
+|add| -A | | 追加、変更された全てのオブジェクトをインデックスに追加。|
+|commit| | | インデックスされたオブジェクトのコミット。 |
+|commit| -a | | 更新されたオブジェクトのコミット。add -u / commit のショートカット。 |
+|log| | | コミット履歴の確認。|
+|log| -n | | nは数字。先頭からn個の履歴だけを表示。|
+|log| %%--stat%%| | コミット履歴と変更統計の表示。|
+|diff| | |作業ツリーと最新コミットの差分を表示。|
+|show| | |最終コミット時の差分。|
+
+
+===== 初期設定 =====
+gitを使用するユーザーの初期環境設定を行います。利用者の名前、メールアドレスを指定します。設定した内容は、ホームディレクトリー内の.gitconifgというファイルに記録されます。
+
+<code>
+$ git config --global user.name 'Yuki Yamazaki'
+$ git config --global user.email 'yyamazaki@knowd.co.jp'
+
+$ cat .gitconfig
+[user]
+	name = Yuki Yamazaki
+	email = yyamazaki@knowd.co.jp
+...
+
+</code>
+
+===== リポジトリーの作成 =====
+バージョン管理対象となるローカルなディレクトリを、gitのリポジトリーとして定義します。
+ここでは、1.txtというファイルが含まれいてるmyprojectというディレクトリーを作成します。
+
+<code>
+$ mkdir myproject
+$ cd myproject
+$ echo "Hello World." > 1.txt
+$ cat 1.txt
+Hello World.
+</code>
+
+myprojectにリポジトリーとして必要な初期設定を行うには、git initコマンドを用います。そのディレクトリに.gitというgitの各種管理情報を含むサブディレクトリーが作成されます。
+
+<code>
+$ git init
+Initialized empty Git repository in myproject/.git/
+
+...
+$ ls .git
+HEAD  branches  config  description  hooks  info  objects  refs
+</code>
+
+===== 管理対象ファイルの追加 =====
+gitリポジトリー内のステータスを確認するには git status コマンドを使用します。
+
+<code>
+$ git status
+# On branch master
+#
+# Initial commit
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	1.txt
+nothing added to commit but untracked files present (use "git add" to track)
+</code>
+
+現在、インデックスされているファイルが存在しません。インデックスにファイルを追加するためには、git addコマンドを用います。.　を指定すると、カレントディレクトリ以下全てのファイルが管理対象となります。
+
+<code>
+$ git add .
+$ git status
+# On branch master
+#
+# Initial commit
+#
+# Changes to be committed:
+#   (use "git rm --cached <file>..." to unstage)
+#
+#	new file:   1.txt
+#
+</code>
+1.txtが新規にコミット対象となります。インデックスからこのファイルを削除するには、git rm --cachedを使用します。削除されると、追加する前の状態となります。
+
+次いで、現在のファイルの状態をリポジトリーにコミットし記録します。git commit -m 'ログメッセージ'というコマンドを指定します。
+
+<code>
+$ git commit -m 'initial commit'
+[master (root-commit) 351b3d0] initial commit
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+ create mode 100644 1.txt
+...
+</code>
+1つのファイルが追加された事を示します。
+
+プロジェクトに新しいリビジョンが作成された事をgit logで確認します。
+<code>
+$ git log
+commit 417a38f1753d7e598714326f489aa02852f9f695
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 05:28:16 2011 +0900
+
+    initial commit
+	
+</code>
+
+git statusで確認すると、commitされるべき対象のファイルがないことが確認できます。
+<code>
+$ git status
+# On branch master
+nothing to commit (working directory clean)
+</code>
+
+以上で、現在のリポジトリーは最新の状態として記録され、作業ツリーとコミットの状態が一致していることを示します。
+
+===== コミット後の変更 =====
+コミット後、リポジトリー内のファイルに変更が加わると、gitはそこからの差分を追跡します。
+1.txtに変更を加えgitが差分を認識している事を確認するために、git diffコマンドを使用します。
+
+<code>
+$ cat 1.txt
+Hello World.
+
+... "Hello git."を加える ...
+
+$ cat 1.txt
+Hello World. 
+Hello git.
+
+$ git diff
+diff --git a/1.txt b/1.txt
+index f534deb..308ef17 100644
+--- a/1.txt
++++ b/1.txt
+@@ -1 +1,2 @@
+ Hello World.
++Hello git.
+
+$ git status
+# On branch master
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   1.txt
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+</code>
+
+1.txtが変更が、最後のコミットから変更されている事を表します。この変更をコミットする予定があるのであれば、git addコマンドを用いて、次回、コミットされる際の対象となる事を指定します。
+
+<code>
+$ git add 1.txt
+
+$ git status
+# On branch master
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   1.txt
+#
+... no changes added to commit ... という出力が無くなる
+
+</code>
+
+1.txtの変更がステージングされた状態（インデックスに追加されているが、コミットされていない状態）で、2.txtという新たなファイルを作成します。
+
+<code>
+$ echo "new file." > 2.txt
+
+$ git status
+# On branch master
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   1.txt
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	2.txt
+</code>
+
+1.txtはステージングされていますが、2.txtは未だである事を示します。この状態でコミットすると、次のリビジョンには1.txtの変更だけが記録されます。
+
+2.txtの追加を記録するか否かは、開発者の判断次第です。2.txtの追加も記録したい場合は、addして下さい。
+
+<code>
+$ git add .
+$ git status
+# On branch master
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   1.txt
+#	new file:   2.txt
+#
+
+</code>
+これで、1.txtの変更と、2.txtの新規追加をコミットする準備ができました。
+
+
+
+コミットし、次のリビジョンを作成します。
+<code>
+$ git commit -m "second commit"
+[master 637cf4e] second commit
+ 2 files changed, 2 insertions(+), 0 deletions(-)
+ create mode 100644 2.txt
+</code>
+
+ログを確認します。
+<code>
+$ git log
+commit 637cf4ec82695f8e4b6bee4ea648c2966b070edc
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 05:41:46 2011 +0900
+
+    second commit
+
+commit 417a38f1753d7e598714326f489aa02852f9f695
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 05:28:16 2011 +0900
+
+    initial commit
+</code>
+
+最後のコミットで行われた変更を表示します。
+<code>
+$ git show
+commit e679936e51eb702a5c5305cdf73b57138694c774
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 07:01:39 2011 +0900
+
+    second commit
+
+diff --git a/1.txt b/1.txt
+index f534deb..308ef17 100644
+--- a/1.txt
++++ b/1.txt
+@@ -1 +1,2 @@
+ Hello World.
++Hello git.
+diff --git a/2.txt b/2.txt
+new file mode 100644
+index 0000000..f0129ca
+--- /dev/null
++++ b/2.txt
+@@ -0,0 +1 @@
++new file.
+
+</code>
+
+====== 取り消し・リセット ======
+開発を進めていく過程で、元の状態に戻りたい場合が出てくるかもしれません。gitは変更履歴を維持しているので任意の状態までさかのぼる事が可能です。取り消しやリセット操作には様々なレベルが存在します。
+
+=== 本セクションで使用するコマンドとオプション ===
+^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
+| checkout | | object |コミットからフィルを取り出す。|
+| commit | %%--amend%% | | 最新のコミットの訂正。|
+| reset | | リセット対象 |コミットをリセット。作業ツリーは維持される。|
+| reset | %%--hard%% | リセット対象 |コミットをリセット。作業ツリーを同期。|
+
+
+===== コミット前の変更の取り消し (checkout) =====
+作業ツリーに行った変更を取り消して、もとに戻す場合は、checkoutコマンドを用います。
+インデックスに登録されているファイルに対するcheckoutは無効となります。
+この作業は、コミットされた最新の状態からやり直す事を意味します。作業ツリーに対する変更を取り消してしまうので、注意して下さい。
+
+1.txtに、"wrong line."という一行を追加し、それを取り消します。
+<code>
+$ echo "wrong line." >> 1.txt 
+
+$ cat 1.txt 
+Hello World.
+Hello git.
+wrong line.
+
+$ git diff
+diff --git a/1.txt b/1.txt
+index 308ef17..9ae4596 100644
+--- a/1.txt
++++ b/1.txt
+@@ -1,2 +1,3 @@
+ Hello World.
+ Hello git.
++wrong line.
+
+...最新のコミットの状態と比べ、+wrong line.が追加されています。
+
+...最新のコミットを取得する事で、元に戻します。
+$ git checkout 1.txt
+
+$ cat 1.txt 
+Hello World.
+Hello git.
+
+</code>
+
+インデックスに追加後に、取り消しを行いたい場合は、checkout HEAD を用いて下さい。
+<code>
+$ echo "wrong line." >> 1.txt 
+
+$ cat 1.txt 
+Hello World.
+Hello git.
+wrong line.
+
+$ git add 1.txt
+
+$ git checkout 1.txt
+$ cat 1.txt 
+Hello World.
+Hello git.
+wrong line.
+
+... addしているので、変更は取り消されません。
+
+$ git checkout HEAD 1.txt 
+
+$ cat 1.txt 
+Hello World.
+Hello git.
+
+... 変更とインデックスへの追加が取り消されます。
+</code>
+
+===== 直前のコミットの訂正 (--amend) =====
+コミットした内容を訂正するには、訂正後、--amendオプションを指定して再度コミットします。-m で、新しいログメッセージを指定できます。もし、ログメッセージ変更の必要がなければ、-C HEAD を指定します。
+<code>
+$ cat "miss" >> 1.txt
+$ git commit -a -m "miss commit"
+[master 4062bd9] miss commit
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+ 
+ $ echo "amend" >> 1.txt
+ 
+ ...新しくコミットするのではなく、直前のコミットを置き換える...
+$ git commit --amend -a -m 'amend commit'
+[master 93d986a] amend commit
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+
+$ git log
+commit 93d986a65bb294940180a9839fc827a1898fcdf3
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 18:34:43 2011 +0900
+
+    amend commit
+
+commit e679936e51eb702a5c5305cdf73b57138694c774
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 07:01:39 2011 +0900
+
+    second commit
+
+...  "miss commit"が訂正されて記録される ...
+</code>
+
+
+
+===== コミット情報の削除 (reset) =====
+特定のコミットの状態に復帰したい場合は、resetを使用します。
+git rest の後、どのコミット状態に戻るかを指定します。
+戻り先には、コミット名を指定します。
+
+コミット名として次のものが使用できます。
+
+| HEAD | 最も最新のコミット |
+| logで表示されるハッシュ値 | git log で得られるハッシュ値 |
+| blameで表示されるハッシュ値 | git blame で得られるハッシュの先頭値 |
+| タグ名 | git tag で指定した任意のタグ名 |
+| ブランチ名 | ブランチの先頭 |
+
+上記で指定したコミット名以前のコミットを相対的に指定する事が可能です。
+
+HEADの例
+^コミット名^1つ前^2つ前^3つ前^N個前^
+| HEAD | %%HEAD^%% | %%HEAD^^%% | %%HEAD^^^%% | ハットを続ける... |
+| HEAD | HEAD~1 | HEAD~2 | HEAD~3 | HEAD~N |
+
+<code>
+...誤ったコミットを3回繰り返す...
+
+$ touch x ...不要なファイルx
+$ git add -A
+$ git commit -a -m "NG commit 1"
+
+$ touch y ...不要なファイルy
+$ git add -A
+$ git commit -a -m "NG commit 2"
+
+$ touch z ...不要なファイルz
+$ git add -A
+$ git commit -a -m "NG commit 3"
+
+
+...　履歴の確認 ...
+$ git log
+commit fea9efb6d9c20717e440e1e66b5b1c7c2b483777
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 08:04:41 2011 +0900
+
+    NG commit 3
+
+commit e76bc32daafe12d0adcdb67670bb510cbff1518e
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 08:03:21 2011 +0900
+
+    NG commit 2
+
+commit 3486e0bf5597a728eb40f522c3c6527232b3ab8f
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 08:02:59 2011 +0900
+
+    NG commit 1
+
+commit e679936e51eb702a5c5305cdf73b57138694c774
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 07:01:39 2011 +0900
+
+    second commit
+
+... 最新のコミット内容の確認 ...
+$ git show 
+commit fea9efb6d9c20717e440e1e66b5b1c7c2b483777
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 08:04:41 2011 +0900
+
+    NG commit 3
+
+diff --git a/z b/z
+new file mode 100644
+index 0000000..e69de29
+
+
+... 一つ前のコミット内容の確認 ...
+$ git show HEAD^
+または
+$ git show HEAD~1
+commit e76bc32daafe12d0adcdb67670bb510cbff1518e
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 08:03:21 2011 +0900
+
+    NG commit 2
+
+diff --git a/y b/y
+new file mode 100644
+index 0000000..e69de29
+
+... 二つ前のコミット内容の確認 ...
+$ git show HEAD^^
+または
+$ git show HEAD~2
+commit 3486e0bf5597a728eb40f522c3c6527232b3ab8f
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 08:02:59 2011 +0900
+
+    NG commit 1
+
+diff --git a/x b/x
+new file mode 100644
+index 0000000..e69de29
+
+
+... 二つ前のコミットにリセットする ...
+$ git reset HEAD^^
+または
+$ git reset HEAD~2
+
+$ git log
+commit 3486e0bf5597a728eb40f522c3c6527232b3ab8f
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 08:02:59 2011 +0900
+
+    NG commit 1
+
+commit e679936e51eb702a5c5305cdf73b57138694c774
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 07:01:39 2011 +0900
+
+    second commit
+
+commit aa0e4f5b1a860119fa3235ce8230b8e7ba259ffa
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 06:57:03 2011 +0900
+
+    initial commit
+
+... xが作成された "NG commit 1"までリセットされる ...
+
+... 作業ツリーに変更は無いことを確認 ...
+$ ls
+1.txt  2.txt  x  y  z
+
+$ git status
+# On branch master
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	y
+#	z
+nothing added to commit but untracked files present (use "git add" to track)
+
+</code>
+
+===== 作業ツリーを同期 (reset --hard) =====
+通常のresetでは、コミット情報を削除しますが、作業ツリーは維持されます。コミット情報の削除とともに作業ツリーもそれに合わせたい場合は、--hardオプションを指定します。
+
+<code>
+$ ls 
+1.txt  2.txt  x  y  z
+
+
+$ git log
+commit 3486e0bf5597a728eb40f522c3c6527232b3ab8f
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 08:02:59 2011 +0900
+
+    NG commit 1
+
+commit e679936e51eb702a5c5305cdf73b57138694c774
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 07:01:39 2011 +0900
+
+    second commit
+
+commit aa0e4f5b1a860119fa3235ce8230b8e7ba259ffa
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 06:57:03 2011 +0900
+
+    initial commit
+
+... x y z は、"NG commit 1"以降に作成された ...
+
+... 最新のコミットである、"NG commit 1"が実行された前の状態に、作業ツリーも含めて戻す ...
+
+$ git reset --hard HEAD^
+HEAD is now at e679936 second commit
+
+$ git log
+commit e679936e51eb702a5c5305cdf73b57138694c774
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 07:01:39 2011 +0900
+
+    second commit
+
+commit aa0e4f5b1a860119fa3235ce8230b8e7ba259ffa
+Author: Yuki Yamazaki <yyamazaki@knowd.co.jp>
+Date:   Sat Oct 22 06:57:03 2011 +0900
+
+    initial commit
+
+$ ls
+1.txt  2.txt  y  z
+
+... "NG commit 1"の際に作成されたファイル x も削除される ...
+
+... y z は、インデックスされていない状態で残っている ...
+$ git status
+# On branch master
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	y
+#	z
+nothing added to commit but untracked files present (use "git add" to track)
+
+</code>
+
+==== 作業ツリーの誤った削除や変更を取り消す ====
+gitにコミットされたオブジェクトは、容易に復活可能です。
+<code>
+$ ls 
+1.txt  2.txt
+
+$ rm *
+$ ls
+... ファイルが無くなっているが、コミットが残っていれば復活可能 ・・・
+
+$ git reset --hard HEAD
+HEAD is now at e679936 second commit
+
+$ ls
+1.txt  2.txt
+
+</code>
+
+====== タグ ======
+gitは、コミットに対してSHA1アルゴリズムを用いた16進数40桁の数値を用いて、コミットにユニークな番号を自動的に割り当てコミットの識別に使用することができます。このハッシュ値を人間が記憶するのは事実上無理なので、このハッシュ値に対して別名である「タグ」を定義することができます。これは、HEADと同様に、特定の時点を示すのに役立ちます。
+
+タグは、.git/refs/tags ディレクトリに名前をファイル名として保存されます。
+名前はスペースを含むことはできません。
+
+=== 本セクションで使用するコマンドとオプション ===
+^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
+| tag | | tagname |現時点のコミットに対するタグの定義。|
+| tag | -f | tagname | タグの強制的な定義、置き換え。|
+| tag | -l | | リポジトリー内に定義されているタグの一覧。|
+| tag | -d | tagname | タグの削除。 |
+| rev-parse | | tagname | 指定したタグに対応するハッシュ値の表示。 |
+
+
+<code>
+... 現在のコミットに 0.9 というタグを設定 ...
+$ git log -1
+$ git log -1
+commit 93d986a65bb294940180a9839fc827a1898fcdf3
+...
+
+$ git tag 0.9
+
+$ git tag -l
+0.9
+
+$ git rev-parse 0.9
+93d986a65bb294940180a9839fc827a1898fcdf3
+
+... コミットを3つ進める ...
+$ touch x
+$ git add .
+$ git commit -m 'test commit 1'
+
+$ touch y
+$ git add .
+$ git commit -m 'test commit 2'
+
+$ touch z
+$ git add .
+$ git commit -m 'test commit 3'
+
+$ ls
+1.txt  2.txt x y z
+
+$ git log
+commit 99217da61f70b56116543be8599ecce388637a84
+    test commit 3
+...
+commit 19fa897d094ef387921f92b8f474fc542857642c
+    test commit 2
+...
+commit 6611bf42a93e1d565e0121653c111d096b4cb6a4
+    test commit 1
+...
+commit 93d986a65bb294940180a9839fc827a1898fcdf3
+    amend commit
+
+... これらの3つコミットを取り消し、0.9というタグをつけたときの状態にハードリセットする ...
+$ git reset --hard 0.9
+
+$ ls
+1.txt 2.txt
+
+$ git log -1
+commit 93d986a65bb294940180a9839fc827a1898fcdf3
+    amend commit
+...
+
+</code>
+
+
+====== バックアップ ======
+作成したリポジとリーのバックアップを取るためのコマンドがいくつか用意されています。
+
+
+=== 本セクションで使用するコマンドとオプション ===
+^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
+| archive | | |tar, zip等のアーカイブを作成する。|
+| clone | | 複製元 複製先| 他のディレクトリーまたは、リモートサーバーに複製を行う。|
+
+===== アーカイブの作成 (archive) =====
+git archive --listで、zip, tar等サポートしているアーカイブ形式を得ることができます。得られた形式をもとに --format オプションに形式を指定します。
+--prefixに、アーカイブする際のここのファイルの前につけるファイル名やディレクトリ名を指定します。通常の使用では、myproject/ 等、サブディレクトリを指定すると良いでしょう。
+-o オプションに、ファイル名を指定します。また、どのコミットをアーカイブするかを指定します。最新のコミットをアーカイブしたければ、HEADを指定してます。
+以下は、最新のコミットを、myprojectというサブディレクトリーつくり、tar形式で/tmp/myproject.tar という名前でアーカイブする例です。
+<code>
+$ git archive --format tar --prefix myproject/ HEAD -o /tmp/myproject.tar
+
+$ tar tvf /tmp/myproject.tar 
+drwxrwxr-x root/root         0 2011-10-22 18:37 myproject/
+-rw-rw-r-- root/root        35 2011-10-22 18:37 myproject/1.txt
+-rw-rw-r-- root/root        10 2011-10-22 18:37 myproject/2.txt
+</code>
+
+===== クローン (clone) =====
+リポジトリーの状態の複製を作成します。
+cloneに続いて複製元、複製先を指定します。それぞれには、リモートのgitリポジトリーを指定することもできます。
+以下は、カレントディレクトリのgitリポジトリーを/tmp/myproject.gitに複製している例です。
+<code>
+$ git clone . /tmp/myproject.git
+Initialized empty Git repository in /tmp/myproject.git/.git/
+
+$ cd /tmp/myproject.git
+$ git log
+....
+</code>
+
