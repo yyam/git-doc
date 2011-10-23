@@ -9,3 +9,6 @@
 
 # LibreOffice lock files.
 .~lock.*
+
+# my test directory
+/mytest
