@@ -1,3 +1,8 @@
-.\~*
-*~
+# vim swap file.
+.*.swp
+# Mac Fider.
 .DS_Store
+# gEdit backkup file.
+*~
+# LibreOffice lock files.
+.~lock.*# 
