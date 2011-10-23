@@ -8,8 +8,6 @@ HTMLで記述された文書はタグで覆われ、テキストで読んだと�
 === 参考ドキュメント ===
   - {{scm-1.pdf|Linuxセキュリティ RCS}}
 
-====== リンク ======
-[[blanch|ブランチ]]
 
 ====== gitとは ======
 [[http://git-scm.com|{{ 01-git-scm.png?400}}]]
@@ -116,22 +114,22 @@ git, git help で得られるコマンドは良く使用するであろう一般
 1と8の状態を取り戻す（リセットする）ことが可能です。9の状態は作業ツリーにだけ存在します。
   
 
-==== リポジトリー (repository) ====
+===== リポジトリー (repository) =====
 gitの管理情報、および、管理対象となっている作業中のファイルやディレクトリー等全てを含む領域を指します。リポジトリー内には、プロジェクトの現在の状態と共にこれまでのコミットが含まれています。
 
-=== コミット (commit) ===
+==== コミット (commit) ====
 リポジトリーに対して任意のオブジェクト（ファイル/ディレクトリ）を記録する事、あるいは、記録されたオブジェクトを指します。コミットによって、プロジェクト内のファイルの履歴が確かに保存されることになり、保存された状態にいつでも復元する事が可能です。
 
 コミットには、その変更がどのような内容であるかを、人間が見て分かりやすいような変更の要約となる短いメッセージ（ログ）をつけておく事が必須となっています。
 
-=== インデックス (index) ===
+==== インデックス (index) ====
 コミットされる候補となるオブジェクトを指します。開発者は、作業中のファイルの中からコミットに値するファイルを選定して、インデックスに登録しておきます。インデックスに登録されたオブジェクトは、次回のコミットの対象となります。インデックスは、ステージ（stage)とも呼ばれ、コミット対象の選定フェイズとして用いられます。
 
 コミットの後、インデックス情報は破棄されます。
 
 このステージングという段階は、何をコミットすべきか？　というコミットの前の検討に貢献します。
 
-=== 作業ツリー (working tree) ===
+==== 作業ツリー (working tree) ====
 開発者が操作するファイルやディレクトリーを指します。開発者は作業ツリー内のファイルやディレクトリーに対して、追加/更新/削除を行います。開発の過程の任意のタイミングで、コミットすべきオブジェクトを選定し、インデックスに登録し、その後、作業の区切りがついた時点で、コミットします。コミットされる対象はインデックスに登録されたオブジェクトのみです。
 
 ====== 初期の流れ ======
@@ -141,7 +139,7 @@ gitでバージョン管理されたプロジェクトを作成するための�
   - 変更の確定 (commit)
   - ファイルの変更、add, commit...
  
-=== 本セクションで使用するコマンドとオプション ===
+** 本セクションで使用するコマンドとオプション **
 ^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
 |init | | |gitリポジトリーの初期化。|
 |config|%%--global%%|parameter value| 初期環境設定の.gitconfigに対する永続化。 | 
@@ -149,6 +147,7 @@ gitでバージョン管理されたプロジェクトを作成するための�
 |add| | object |インデックスへの追加。|
 |add| -u | | 更新されたオブジェクトをインデックスの追加。新規ファイルは追加されない。 |
 |add| -A | | 追加、変更された全てのオブジェクトをインデックスに追加。|
+|stage| | | addの別名 |
 |commit| | | インデックスされたオブジェクトのコミット。 |
 |commit| -a | | 更新されたオブジェクトのコミット。add -u / commit のショートカット。 |
 |log| | | コミット履歴の確認。|
@@ -401,7 +400,7 @@ index 0000000..f0129ca
 ====== 取り消し・リセット ======
 開発を進めていく過程で、元の状態に戻りたい場合が出てくるかもしれません。gitは変更履歴を維持しているので任意の状態までさかのぼる事が可能です。取り消しやリセット操作には様々なレベルが存在します。
 
-=== 本セクションで使用するコマンドとオプション ===
+** 本セクションで使用するコマンドとオプション **
 ^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
 | checkout | | object |コミットからフィルを取り出す。|
 | commit | %%--amend%% | | 最新のコミットの訂正。|
@@ -715,7 +714,7 @@ nothing added to commit but untracked files present (use "git add" to track)
 
 </code>
 
-==== 作業ツリーの誤った削除や変更を取り消す ====
+===== 作業ツリーの誤った削除や変更を取り消す =====
 gitにコミットされたオブジェクトは、容易に復活可能です。
 <code>
 $ ls 
@@ -739,7 +738,7 @@ gitは、コミットに対してSHA1アルゴリズムを用いた16進数40桁
 タグは、.git/refs/tags ディレクトリに名前をファイル名として保存されます。
 名前はスペースを含むことはできません。
 
-=== 本セクションで使用するコマンドとオプション ===
+** 本セクションで使用するコマンドとオプション **
 ^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
 | tag | | tagname |現時点のコミットに対するタグの定義。|
 | tag | -f | tagname | タグの強制的な定義、置き換え。|
@@ -810,7 +809,7 @@ commit 93d986a65bb294940180a9839fc827a1898fcdf3
 作成したリポジとリーのバックアップを取るためのコマンドがいくつか用意されています。
 
 
-=== 本セクションで使用するコマンドとオプション ===
+** 本セクションで使用するコマンドとオプション **
 ^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
 | archive | | |tar, zip等のアーカイブを作成する。|
 | clone | | 複製元 複製先| 他のディレクトリーまたは、リモートサーバーに複製を行う。|
@@ -842,3 +841,375 @@ $ git log
 ....
 </code>
 
+====== ブランチ ======
+gitでは、デフォルトで master というブランチ上で作業を行っています。
+このブランチ上にコミットが、連なる形を取ります。
+
+\\  
+{{01-git-im.png}}
+
+** 本セクションで使用するコマンドとオプション **
+^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
+| branch | | | ブランチの一覧表示。|
+| branch | | newbranch| ブランチの新規作成。|
+| branch | -b | newbranch | ブランチの新規作成とチェックアウト。|
+| branch | -d | deletebranch | ブランチの削除。|
+| branch | -D | deletebranch | ブランチの強制削除。|
+| checkout | | newbranch | ブランチの最新版を作業ツリーにチェックアウト。|
+| merge | | branch | ブランチのマージ。 |
+| merge | %%--squash%% | branch | squashマージ。 |
+| cherry-pick | | commit-ID | 特定のコミットの取り込み。 |
+
+
+現在、リポジトリー上に存在するブランチを表示するには、branchコマンドを使用します。
+<code>
+$ git branch
+* master
+</code>
+
+* は、現在作業中のブランチを示しています。
+
+masterブランチから、別のブランチを作ることができます。新しいブランチの変更は masterと別のコミットを持つことができ、任意のタイミングで、別のブランチにマージすることができます。
+
+\\  
+{{02-git-im.png}}
+
+===== ブランチの作成と切り替え =====
+ブランチを作成するには、branchコマンドを使用し、ブランチを作業ツリーに反映するにはcheckoutを使用します。
+
+ここでは、experimentalというブランチを作成します。
+<code>
+$ git branch experimental
+
+$ git branch
+  experimental
+* master
+</code>
+
+現在、作業ツリーがmasterである事を示します。これを、experimetalに変更するには、checkoutを実行します。
+<code>
+$ git checkout experimental
+Switched to branch 'experimental'
+
+$ git branch
+* experimental
+  master
+  
+$ git status
+# On branch experimental
+nothing to commit (working directory clean)
+
+</code>
+
+experimentalに対して、いくつかのコミットを行います。
+<code>
+$ touch ex1
+$ git add .
+$ git commit -m 'ex1'
+
+$ touch ex2
+$ git add .
+$ git commit -m 'ex2'
+
+$ git log
+commit 44792d15527c89f2395e38f4d4d9084b3e9e0d74
+    ex2
+
+commit 2f49d84fc1c1ddc665a06bfb6d7ad50f44d34ae3
+    ex1
+
+commit 93d986a65bb294940180a9839fc827a1898fcdf3
+    amend commit
+
+$ ls
+1.txt  2.txt  ex1  ex2
+
+</code>
+
+masterの状態を確認します。作業ツリーをmasterに切り替え、状態を確認します。
+<code>
+$ git checkout master
+Switched to branch 'master'
+
+$ git branch
+  experimental
+* master
+
+$ touch m1
+$ git add .
+$ git commit -m 'm1'
+
+$ touch m2
+$ git add .
+$ git commit -m 'm2'
+
+$ ls
+1.txt  2.txt m1 m2
+
+$ git log
+commit 12b1443b140602dccb682aff9ebe0997387bc549
+    m2
+
+commit de5064f20dedfb9be6e1bc62c3cded2f2bdd1e90
+    m1
+
+commit 93d986a65bb294940180a9839fc827a1898fcdf3
+    amend commit
+...	
+</code>
+
+一つのリポジトリーが、masterから分岐したブランチを持てる事を確認できます。
+
+===== マージ (merge) =====
+上記の例では、masterブランチに m1, m2 2つのファイルに対するコミット、experimentalブランチにex1, ex2 2つのファイルに対するコミットを行いました。experimentalの変更を masterにマージするには、mergeコマンドを使用します。
+
+<code>
+$ git checkout master
+Already on 'master'
+
+$ git merge experimental
+Merge made by recursive.
+ 0 files changed, 0 insertions(+), 0 deletions(-)
+ create mode 100644 ex1
+ create mode 100644 ex2
+
+$ git log
+commit b2a4998f6d155fab7b9a03bda2bf3acc33609c60
+    Merge branch 'experimental'
+	
+commit 12b1443b140602dccb682aff9ebe0997387bc549
+    m2
+
+commit de5064f20dedfb9be6e1bc62c3cded2f2bdd1e90
+    m1
+
+commit 44792d15527c89f2395e38f4d4d9084b3e9e0d74
+    ex2
+
+commit 2f49d84fc1c1ddc665a06bfb6d7ad50f44d34ae3
+    ex1
+
+....
+
+$ ls
+1.txt  2.txt  ex1  ex2  m1  m2
+
+</code>
+
+ブランチが持つ履歴もマージされます。このマージを取り消すには、resetが使用できます。
+<code>
+$ git reset --hard HEAD^
+$ git log
+...
+commit 12b1443b140602dccb682aff9ebe0997387bc549
+    m2
+
+commit de5064f20dedfb9be6e1bc62c3cded2f2bdd1e90
+    m1
+...
+
+$ ls
+1.txt  2.txt  m1  m2
+</code>
+
+==== squash merge (--squash)====
+通常のマージでは、ブランチのコミット履歴を全て取り込みますが、外部のブランチのコミットを1つのコミットに取りまとめてマージするには、marge --squashを指定します。コミットは行われないので手動でコミットします。
+<code>
+$ git checkout experimental
+$ git log
+commit 44792d15527c89f2395e38f4d4d9084b3e9e0d74
+    ex2
+
+commit 2f49d84fc1c1ddc665a06bfb6d7ad50f44d34ae3
+    ex1
+	
+
+$ git checkout master
+ git log
+commit 12b1443b140602dccb682aff9ebe0997387bc549
+    m2
+
+commit de5064f20dedfb9be6e1bc62c3cded2f2bdd1e90
+    m1
+
+$ git merge --squash experimental
+Squash commit -- not updating HEAD
+Automatic merge went well; stopped before committing as requested
+
+$ git status
+# On branch master
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	new file:   ex1
+#	new file:   ex2
+#
+
+$ git commit -m "squash merge"
+[master 84cea18] squash merge
+ 0 files changed, 0 insertions(+), 0 deletions(-)
+ create mode 100644 ex1
+ create mode 100644 ex2
+
+$ git log
+commit 84cea182310ee427b0e1b64593449704be4038a4
+    squash merge
+
+commit 12b1443b140602dccb682aff9ebe0997387bc549
+    m2
+
+commit de5064f20dedfb9be6e1bc62c3cded2f2bdd1e90
+    m1
+ 
+</code>
+
+==== cherry-pick ====
+他のブランチから、全てではなく、特定のコミットのみを反映させることができます。
+以下の例では、experimentalブランチのex1のコミットだけを取り込みます。
+<code>
+$ git branch
+  experimental
+* master
+
+$ git log experimental ex1
+
+commit 2f49d84fc1c1ddc665a06bfb6d7ad50f44d34ae3
+    ex1
+
+$ git cherry-pick 2f49d84fc1c1ddc665a06bfb6d7ad50f44d34ae3
+Finished one cherry-pick.
+[master 47c3b9a] ex1
+ 0 files changed, 0 insertions(+), 0 deletions(-)
+ create mode 100644 ex1
+
+$ ls
+1.txt  2.txt  ex1  m1  m2
+
+
+$ git log
+commit 47c3b9af30b386af45aac71fb8cb31c95b86d132
+    ex1
+	
+commit 12b1443b140602dccb682aff9ebe0997387bc549
+    m2
+
+</code>
+
+
+===== コンフリクト =====
+上記のマージが問題なく動作するのは、変更にコンフリクトが無いためです。それぞれのブランチで同一のオブジェクトに対して異なる変更を加えた場合、コンフリクトが発生します。
+
+基本的に、マージされる予定のあるブランチ間では、コンフリクトは避けるように作業すべきですが、開発者がそれぞれ、独自に開発を行うとコンフリクトを避ける事は難しいかも知れませんし、同一のオブジェクトを同時に編集した場合、多くの場合コンフリクトは不可避です。
+
+コンフリクトの解消を、誰がどのように行うかは、プロジェクトの体制や性格によります。
+
+ここでは、masterブランチと、experimentalブランチとで、コンフリクトを発生させてみます。
+
+masterブランチ: 1.txtにauther: Aliceと書き込みます。
+<code>
+$ git branch
+  experimental
+* master
+
+$ echo "author: Alice" >> 1.txt
+
+$cat 1.txt
+...
+author: Alice
+
+$ git add .
+$ git commit -m 'alice'
+[master 6e44a35] alice
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+</code>
+
+experimentalブランチ: 1.txtにauthor: Bobと書き込みます。
+<code>
+$ git checkout experimental
+Switched to branch 'experimental'
+
+$ git branch
+* experimental
+  master
+  
+$ echo "author: Bob" >> 1.txt
+
+$ cat 1.txt 
+...
+author: Bob
+
+$ git add .
+$ git commit -m 'bob'
+[experimental 34e3db9] bob
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+</code>
+
+ぞれぞれのブランチが、1.txtに異なる変更を加えています。これをマージするとコンフリクトが発生します。コンフリクトが発生すると、自動的なコミットは行われず、解消を待ちます。
+<code>
+$ git checkout master
+
+$ git merge experimental
+Auto-merging 1.txt
+CONFLICT (content): Merge conflict in 1.txt
+Automatic merge failed; fix conflicts and then commit the result.
+
+$ git status
+# Unmerged paths:
+#   (use "git add/rm <file>..." as appropriate to mark resolution)
+#
+#	both modified:      1.txt
+#
+
+</code>
+
+コンフリクトが発生しているファイルは次のような、両方のファイルの内容が以下のフォーマットで組み合わされた状態となっています。
+<code>
+Hello World.
+Hello git.
+
+<<<<<<< HEAD
+author: Alice
+=======
+author: Bob
+>>>>>>> experimental
+</code>
+
+これを、エディターやマージツールを使って、解消します。
+今回は以下のように解消しました。
+
+<code>
+Hello World.
+Hello git.
+
+author: Alice
+author: Bob
+</code>
+
+解消が完了したら、これをコミットします。
+<code>
+$ git add .
+$ git commit -m 'resolve conflict'
+[master f183689] resolve conflict
+</code>
+
+===== ブランチの削除　======
+ブランチの削除は、branch -d で行うことができます。フルマージされていないブランチは-dオプションでは削除できません。-Dオプションを使用します。
+<code>
+$ git branch
+  experimental
+* master
+
+$ git branch -d experimental
+error: The branch 'experimental' is not fully merged.
+If you are sure you want to delete it, run 'git branch -D experimental'.
+
+$ git merge experimental
+
+$ git branch -d experimental
+Deleted branch experimental (was 44792d1).
+
+$ git branch
+* master
+
+</code>
