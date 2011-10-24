@@ -397,7 +397,7 @@ index 0000000..f0129ca
 
 </code>
 
-====== 管理対象から外したいファイルの指定 (gitignore) =====
+===== 管理対象から外したいファイルの指定 (gitignore) =====
 gitのプロジェクトディレクトリに、.gitignoreというファイルを作成し、その中にgitの管理対象から外したいオブジェクトを記述することができます。記述としては、*, ?, [] などのファイル名ようメタキャラクターが使用できます。
 
 .gitignoreの例）
@@ -435,8 +435,7 @@ mytest/ は相対的な指定で /subdirectory/mytest というディレクト�
 
 
 ===== コミット前の変更の取り消し (checkout) =====
-作業ツリーに行った変更を取り消して、もとに戻す場合は、checkoutコマンドを用います。
-インデックスに登録されているファイルに対するcheckoutは無効となります。
+作業ツリーに行った変更を取り消してもとに戻す場合、つまり、コミットされた状態のファイルを引き出し作業ツリーに展開するには、checkoutコマンドを用います。
 この作業は、コミットされた最新の状態からやり直す事を意味します。作業ツリーに対する変更を取り消してしまうので、注意して下さい。
 
 1.txtに、"wrong line."という一行を追加し、それを取り消します。
@@ -535,6 +534,7 @@ Date:   Sat Oct 22 07:01:39 2011 +0900
 特定のコミットの状態に復帰したい場合は、resetを使用します。
 git rest の後、どのコミット状態に戻るかを指定します。
 戻り先には、コミット名を指定します。
+この作業は、プロジェクトの歴史を消し去ることになるので、注意が必要です。%%--hard%%を指定すると作業ツリーを更新し、二度ともとに復帰できなくなるので、更なる注意が必要です。
 
 コミット名として次のものが使用できます。
 
@@ -758,6 +758,166 @@ $ ls
 
 </code>
 
+===== コミットの取り消し (blame/revert) =====
+revertは、resetと異なりコミットの履歴自体を削除することはありませんが、特定のコミットで行われた変更を無かった事にするために役立ちます。
+
+1 -> 2 -> 3 とコミットが連続で実行された後に、revert 2 とすると、2の変更を取り消けしたじょうたいにしてコミットしようとします。多くの場合、時系列的な依存によりコンフリクトが発生しますので、コミットは失敗します。
+
+3回のコミットによって、作られたcommit.txtファイルがあるとします。
+<code>
+$ cat commit.txt 
+commit 1
+commit 2
+commit 3
+
+$ git log
+commit bb0654df5e9831e9eda7ee8c1ef1d57d29c31875
+    commit 3
+
+commit 05c1aa742ae4597dd0747db29cca97413538c01c
+    commit 2
+
+commit d4742e27e7b187bd0f122708aa94f85c43e7c521
+    commit 1
+
+</code>
+ぞれぞれの行がどのコミットによって作られたかを調べるには、blameを使用します。
+
+<code>
+$ git blame commit.txt 
+^d4742e2 (Yuki Yamazaki 2011-10-24 07:05:17 +0900 1) commit 1
+05c1aa74 (Yuki Yamazaki 2011-10-24 07:05:17 +0900 2) commit 2
+bb0654df (Yuki Yamazaki 2011-10-24 07:05:17 +0900 3) commit 3
+</code>
+
+commit 2を打ち消すには、05c1aa74をrevertします。コンフリクトが発生しない場合、指定したコミットが取り消された状態でコミットされます。コンフリクトが発生しコミットには到りません。
+<code>
+$ git revert 05c1aa74
+Automatic revert failed.  After resolving the conflicts,
+mark the corrected paths with 'git add <paths>' or 'git rm <paths>'
+and commit the result.
+$ git status
+# On branch master
+# Unmerged paths:
+#   (use "git reset HEAD <file>..." to unstage)
+#   (use "git add/rm <file>..." as appropriate to mark resolution)
+#
+#	both modified:      commit.txt
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+
+</code>
+コンフリクトを解消します。
+<code>
+... commit.txt ...
+commit 1
+<<<<<<< HEAD
+commit 2
+commit 3
+=======
+>>>>>>> parent of 05c1aa7... commit 2
+
+... 修正 ...
+commit 1
+commit 3
+
+$ git add .
+$ git status
+# On branch master
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   commit.txt
+#
+
+$ git commit -m 'revert 05c1aa7'
+[master 4e18e73] revert 05c1aa7
+ 1 files changed, 0 insertions(+), 1 deletions(-)
+
+</code>
+
+以上で、特定のコミットでの変更を修正することができます。
+
+===== コミット履歴の編集 (rebase) =====
+rebaseを使用すると、コミットされた履歴のログメッセージを編集することができます。
+
+編集可能な操作は次のものです。
+  * 順番の変更
+  * コミットメッセージの変更
+  * コミットの圧縮 (squash)
+  * コミットの分割 (fixup)
+
+編集対象の先頭となるコミットをrebaseの引数として指定します。
+<code>
+$ git log
+commit 7df0ac8cb5058bae5e8e0f989e00ebbea409c189
+    commit 5
+
+commit 636d4c054a4a008c3645bf1875bb794be03b4a9c
+    commit 4
+
+commit 65628a4ba88c3945bd63a3530e99b4c8144cdda6
+    commit 3
+
+commit f62520cca7fb2d207f2535def5fae35393232ceb
+    commit 2
+
+commit 33742dde71ea10fb765a74db48dc9dc8d23b971d
+    commit 1
+</code>
+
+commit 1 より後のコミット（commit 2以降）を編集するには、次のように指定します。-iは対話的な変更を意味します。
+<code>
+$ git rebase -i 33742dde71ea10fb765a74db48dc9dc8d23b971d
+
+...エディターが起動する...
+pick f62520c commit 2
+pick 65628a4 commit 3
+pick 636d4c0 commit 4
+pick 7df0ac8 commit 5
+
+# Rebase 33742dd..7df0ac8 onto 33742dd
+#
+# Commands:
+#  p, pick = use commit
+#  r, reword = use commit, but edit the commit message
+#  e, edit = use commit, but stop for amending
+#  s, squash = use commit, but meld into previous commit
+#  f, fixup = like "squash", but discard this commit's log message
+#
+# If you remove a line here THAT COMMIT WILL BE LOST.
+# However, if you remove everything, the rebase will be aborted.
+#
+</code>
+
+上部に、コミットの履歴が古いものから順番に並び、それらのコミットに対する変更を、pick, reward, edit, squash, fixupから選びます。また、順番を変更すると並び替えが行われます。
+
+===== squash / fixup =====
+一つ前のコミットとまとめられます。
+<code>
+pick 8629827 commit 2
+pick 4bf6926 commit 3
+squash 8bfeaee commit 4
+pick 9b23cb3 commit 5
+</code>
+squashを指定すると、commit 3とcommit 4をまとめ、新たなメッセージを指定できます。エディターを保存終了すると、メッセージの編集に切り替わりますので、保存終了します。fixupを指定すると、メッセージの編集はせず、commit 4が消え、commit 3にまとめられます。
+
+===== edit / reward =====
+r(reward)を指定すると、メッセージの内容を変更できます。
+<code>
+pick 69251f3 commit 2
+pick 6b9664c commit 3
+reword 8ea64b0 commit 4
+pick a6da343 commit 5
+</code>
+rewordを指定すると、メッセージを編集する画面に切り替わりますので、保存終了すると、メッセージを変更できます。editを指定すると、指定したコミットがHEADになった無名ブランチ上での操作となりますので、commit --amendを指定することでコミットメッセージを変更できます。rebaseを進めるためには、rebase --continueを実行します。
+<code>
+$ git commit --amend -m 'amending message'
+$ git rebase --continue
+Successfully rebased and updated refs/heads/master
+</code>
+
+
 ====== タグ ======
 gitは、コミットに対してSHA1アルゴリズムを用いた16進数40桁の数値を用いて、コミットにユニークな番号を自動的に割り当てコミットの識別に使用することができます。このハッシュ値を人間が記憶するのは事実上無理なので、このハッシュ値に対して別名である「タグ」を定義することができます。これは、HEADと同様に、特定の時点を示すのに役立ちます。
 
@@ -837,7 +997,7 @@ commit 93d986a65bb294940180a9839fc827a1898fcdf3
 
 ** 本セクションで使用するコマンドとオプション **
 ^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
-| archive |%%--format, --prefix, -o | commit-ish |tar, zip等のアーカイブを作成する。|
+| archive |%%--format, --prefix, -o%% | commit-ish |tar, zip等のアーカイブを作成する。|
 | clone | | 複製元 複製先| 他のディレクトリーまたは、リモートサーバーに複製を行う。|
 
 ===== アーカイブの作成 (archive) =====
@@ -861,6 +1021,9 @@ drwxrwxr-x root/root         0 2011-10-22 18:37 myproject/
 リポジトリーの状態の複製を作成します。
 cloneに続いて複製元、複製先を指定します。それぞれには、リモートのgitリポジトリーを指定することもできます。
 以下は、カレントディレクトリのgitリポジトリーを/tmp/myproject.gitに複製している例です。
+
+クローンされたリポジトリーは、gitの履歴や管理情報を含みます。
+
 <code>
 $ git clone . /tmp/myproject.git
 Initialized empty Git repository in /tmp/myproject.git/.git/
@@ -869,6 +1032,18 @@ $ cd /tmp/myproject.git
 $ git log
 ....
 </code>
+
+複製されたcloneは、何処から複製されたか？　という情報を保持しています。
+<code>
+$ git var -l
+...
+remote.origin.url=/home/gittest/myproject
+...
+</code>
+cloneされたリポジトリーは単体で使用し続けることはできますが、pushを通じたオリジナルに対する更新は拒否されます。
+一方、オリジナルがそのURLで存在していれば、pullを通じてオリジナルの変更をマージする事は可能です。
+
+この意味で、オリジナルとクローンは対称とはなっていません。
 
 ====== ブランチ ======
 gitでは、デフォルトで master というブランチ上で作業を行っています。
@@ -1242,3 +1417,609 @@ $ git branch
 * master
 
 </code>
+
+
+====== プロジェクトの分散化 ======
+自分のラップトップだけで作業している場合、リポジトリーは一カ所に存在し、一人の開発者が変更を行いますが、複数箇所で、複数人が同時に開発する場合は、いくつかの準備が必要となります。
+
+\\ 
+{{03-git-im.png}}
+
+それぞれの開発者の振る舞い
+  * 開発者Aは、最初のリポジトリーをつくり、それをbareリポジトリーとして公開した。
+  * 開発者Bは、開発者Aの作ったリポジトリーをクローンにより入手した。
+  * 開発者Cは、開発者Aが公開したbareリポジトリーをもとに開発に参加し、さらに自作分を含めbareリポジトリーとして公開した。
+  * 開発者Dは、開発者A,B,CとともにAの公開したbareリポジトリーを使って開発に参加した。
+
+** 本セクションで使用するコマンドとオプション **
+^ COMMAND ^ OPTION ^ ARGS ^ 概要 ^
+| init | %%--bare%% | | bareリポジトリーの初期化。 |
+| push | | リポジトリー ブランチ | 指定したリポジトリーにブランチをpush。|
+| clone | %%--bare%% | 複製元 複製先 | 複製元からbareリポジトリーを複製。|
+| push | | [remote] [branch] | デフォルトのリモートリポジトリーにpush |
+| pull | | [remote] [branch] | デフォルトのリモートリポジトリーからpull |
+
+
+===== bare リポジトリー =====
+リポジトリーには、non-bareリポジトリーと、bareリポジトリーの2種類があります。
+non-bareリポジトリーは、gitの管理情報とともに作業ツリーを持ち、それのみでファイル操作が可能です。一方、bareリポジトリーは管理情報やコミット履歴を持ちますが、作業ツリーを持ちません。bareリポジトリーは、複数のリポジトリー間でのコミット情報を交換する目的で作成され、pushとpullの両方を受け付ける事ができます。
+
+bare --- 最低限の、最小限の、むきだしの
+
+bareリポジトリーは、git変数core.bareがtrueとなり、non-bareリポジトリーはfalseとなります。
+<code>
+$ git var -l
+...
+core.bare=false
+...
+</code>
+
+bareリポジトリーには慣例的に、myproject.gitのように、サフィックスに.gitを付け、non-bareリポジトリーと区別します。
+
+
+bareリポジトリーを作成するには、ディレクトリを作成し、init --bare を実行します。その後、元になるリポジトリーをpushします。
+
+<code>
+$ git init --bare myproject.git/
+$ cd myproject.git
+$ ls
+HEAD  branches  config  description  hooks  info  objects  refs
+
+$ git var -l
+core.bare=true
+
+
+... myprojectのmasterブランチを myproject.git にpush ...
+
+$ cd ~/myproject
+
+$ git push ~/myproject.git master
+
+Counting objects: 7, done.
+Delta compression using up to 2 threads.
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (7/7), 502 bytes, done.
+Total 7 (delta 0), reused 7 (delta 0)
+Unpacking objects: 100% (7/7), done.
+To /home/gittest/myproject.git
+ * [new branch]      master -> master
+ 
+</code>
+
+bareリポジトリーを作成し、プロジェクトをpushするという作業は、clone --bareで同様のことが可能です。
+
+<code>
+$ git clone --bare myproject myproject.git
+</code>
+
+上記の方法で、作られた、オリジナルとbareリポジトリーの間に関連性はありません。それぞれが、独立して動作することになります。
+
+bareリポジトリーからは、作業ツリーをもつクローンが生成できます。クローンは、bareリポジトリーの場所(URL)を維持しており、push, pullが可能です。
+<code>
+$ git clone myproject.git myproject.clone
+Initialized empty Git repository in /home/gittest/myproject.clone/.git/
+
+$ cd myproject.clone
+
+$ ls
+1.txt  2.txt
+
+</code>
+
+===== push と pull =====
+クローンの元となったリポジトリーは、git変数の、remote.origin.urlに記録されています。このオリジナルのURLで起きた変更を持ってくる時に使うのが pullであり、クローン側での変更をオリジナルに反映させるのがpushです。
+
+オリジナルからクローンされたリポジトリーは、クローン直後はオリジナルと同じなので、pushとpullは次のようなレスポンスを返します。
+<code>
+$ git pull
+Already up-to-date.
+
+$ git push
+Everything up-to-date
+</code>
+
+ローカル（クローンされた側）で、ファイルに変更を加えコミットし、それをオリジナルに通知する場合は、pushを使用します。
+<code>
+$ echo "add at clone side." >> 1.txt 
+$ git add .
+$ git commit -m 'modify at clone.'
+[master 8d7ae08] modify at clone.
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+  
+ $ git push
+Counting objects: 5, done.
+Delta compression using up to 2 threads.
+Compressing objects: 100% (2/2), done.
+Writing objects: 100% (3/3), 312 bytes, done.
+Total 3 (delta 0), reused 0 (delta 0)
+Unpacking objects: 100% (3/3), done.
+To /home/gittest/myproject.git
+   e679936..8d7ae08  master -> master
+
+... オリジナルに変更が反映されている事を確認 ...
+
+$ cd ~/myproject.git
+$ git log
+commit 8d7ae08909a616c5853a839557f217f117ad47a0
+    modify at clone.
+
+</code>
+
+例として、一つのgitリポジトリからクローンされた2つのリポジトリー間でのpush/pullを確認します。
+開発者aliceとbobが、同時に、myproject.gitからクローンを作成します。
+<code>
+... alice ...
+$ git clone myproject.git myproject.alice
+
+... bob ...
+$ git clone myproject.git myproject.bob
+</code>
+
+aliceは、1.txtに "my name is Alice."　を追加し、コミットします。同時期にbobも同じ事をします。
+<code>
+... myproject.alice ...
+$ echo "my name is Alice." >>  1.txt
+$ git commit -a -m 'alice modify'
+
+... myproject.bob ...
+$ echo "my name is Bob." >>  1.txt
+$ git commit -a -m 'bob modify'
+</code>
+
+それぞれ、Alice, Bobの順にオリジナルにpushします。
+<code>
+.... Alice ...
+$ git push
+Counting objects: 5, done.
+Delta compression using up to 2 threads.
+Compressing objects: 100% (2/2), done.
+Writing objects: 100% (3/3), 308 bytes, done.
+Total 3 (delta 0), reused 0 (delta 0)
+Unpacking objects: 100% (3/3), done.
+To /home/gittest/myproject.git
+   e679936..fd68bba  master -> master
+
+
+... Aliceは成功します ...
+
+.... Bob ....
+$ git push
+To /home/gittest/myproject.git
+ ! [rejected]        master -> master (non-fast-forward)
+error: failed to push some refs to '/home/gittest/myproject.git'
+To prevent you from losing history, non-fast-forward updates were rejected
+Merge the remote changes before pushing again.  See the 'Note about
+fast-forwards' section of 'git push --help' for details.
+
+.... Bob はリジェクトされます...
+</code>
+
+これは、1.txtをBobがpullしたときの状態から変更(Aliceによって)されていたためにおこるものです。この場合、Bobはオリジナルの最新の状態をpullし、オリジナルの履歴を再度取得し、競合を解決する必要があります。
+
+<code>
+$ git pull
+remote: Counting objects: 5, done.
+remote: Compressing objects: 100% (2/2), done.
+remote: Total 3 (delta 0), reused 0 (delta 0)
+Unpacking objects: 100% (3/3), done.
+From /home/gittest/myproject
+   e679936..fd68bba  master     -> origin/master
+Auto-merging 1.txt
+CONFLICT (content): Merge conflict in 1.txt
+Automatic merge failed; fix conflicts and then commit the result.
+
+</code>
+
+Bobはコンフリクトを解決します。
+<code>
+Hello World.
+Hello git.
+<<<<<<< HEAD
+my name is Bob.
+=======
+my name is Alice.
+>>>>>>> fd68bbaf65e78633a4a82403ea00da0642a4d8fe
+
+... を、以下のように解決 ...
+
+Hello World.
+Hello git.
+my name is Alice.
+my name is Bob.
+</code>
+
+競合が解決したので、再度コミットし、pushします。
+<code>
+$ git commit -a -m 'bob modify 2'
+[master 2a0d08b] bob modify 2
+
+$ git push
+Counting objects: 10, done.
+Delta compression using up to 2 threads.
+Compressing objects: 100% (5/5), done.
+Writing objects: 100% (6/6), 614 bytes, done.
+Total 6 (delta 0), reused 0 (delta 0)
+Unpacking objects: 100% (6/6), done.
+To /home/gittest/myproject.git
+   fd68bba..2a0d08b  master -> master
+  
+... 成功 ...
+</code>
+
+上記のAliceとBobのやり取りは、オリジナルのbareリポジトリー(myproject.git)に次のように記録されます。
+<code>
+$ git log
+commit 2a0d08b5d62b156d7ee7c481869d62efd76f3bed
+    bob modify 2
+
+commit 5dee8d1052e7d082649c7fcfe77846c1f2ad62ce
+    bob modify
+
+commit fd68bbaf65e78633a4a82403ea00da0642a4d8fe
+    alice modify
+
+</code>
+
+===== リモート共有リポジトリー =====
+上記の例では、ローカルなマシン上のmyproject.gitディレクトリを、AliceとBobで共有するシナリオを見てきました。
+このmyproject.gitのようなbareリポジトリーを、ネットワーク上に公開する事で、共有リポジトリー化することができます。
+
+ネットワーク上に公開する方法は、SSHを使用する、gitのネイティブな通信機能を使う、HTTP/HTTPS等を通じて配布する、等のバリエーションがありますが、読み書きの両方が可能であり、かつ、セキュリティ的な側面をカバーするには、SSHによるセットアップが容易です。
+
+==== 共通アカウント(git)を使う方法 ====
+メンバーのUNIXアカウントは、サーバー上に作成せず、1つの共通アカウント(git)を使う方法です。共通のアカウントは、メンバーのSSH公開鍵を信頼します。メンバーのアカウントを作成する必要はありませんが、複数のメンバーが共通アカウントを用いたアクセスを許さなければなりません。
+
+AliceとBobが共に、SSHでアクセス可能なアカウント(git)をサーバー(server)に作成し、ここにbareリポジトリーを作成します。git@serverはAliceとBobは共に読み書きが可能となるので、信頼のおけるプロジェクトのメンバーである事が前提です。
+
+<code>
+server# useradd git
+server# su - git
+
+... 初期化 ...
+server$ git config --global user.name 'kdc'
+server$ git config --global user.email 'kdc@knowd.co.jp'
+
+server$ mkdir shareproject
+server$ cd shareproject
+server$ echo "Hello World." > readme.txt
+
+server$ git init
+server$ git add .
+server$ git commit -m 'project starting point'
+[master (root-commit) 82f40c1] project starting point
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+ create mode 100644 readme.txt
+
+server$ cd ..
+
+server$ git clone --bare shareproject shareproject.git
+Cloning into bare repository shareproject.git...
+done.
+
+</code>
+
+
+aliceとbobの、SSH公開鍵をgit@serverに登録します。SSHのキーは次のように作成されます。
+<code>
+[alice@pc]$ ssh-keygen 
+Generating public/private rsa key pair.
+Enter file in which to save the key (/home/alice/.ssh/id_rsa): 
+Created directory '/home/alice/.ssh'.
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/alice/.ssh/id_rsa.
+Your public key has been saved in /home/alice/.ssh/id_rsa.pub.
+The key fingerprint is:
+09:a8:00:0c:06:07:24:74:a8:80:55:57:81:f3:3e:bb alice@lx13.example.com
+The key's randomart image is:
++--[ RSA 2048]----+
+|&*+o. .oo.       |
+|*+.  oo          |
+|+   . .o         |
+|.. .   ...       |
+|  .    .S        |
+|        o        |
+|         o       |
+|        .        |
+|        E.       |
++-----------------+
+
+... aliceの公開鍵 ...
+[alice@pc]$ cat .ssh/$ cat .ssh/id_rsa.pub 
+ssh-rsa AAAAB3NzaC1yc2E... alice@alice-pc.example.com
+
+</code>
+
+二人のアクセスを認めるために、git@serverの~/.ssh/authorized_keysに、それぞれの公開鍵を追加します。
+
+server上の/home/git/.ssh/authorized_keys
+<code>
+ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQE... alice@alice-pc.example.com
+ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQE... bob@bob-pc.example.com
+</code>
+
+
+alice, bobがsshで、git@serverにアクセス可能である事を確認します。
+<code>
+[alice@pc]$ ssh git@server
+...
+Are you sure you want to continue connecting (yes/no)? yes
+Enter passphrase for key '/home/alice/.ssh/id_rsa': 
+
+[git@server]$ 
+</code>
+
+git@serverより、shareproject.gitをcloneします。
+<code>
+[alice@pc]$ git clone ssh://git@server/home/git/shareproject.git
+Initialized empty Git repository in /home/alice/shareproject/.git/
+Enter passphrase for key '/home/alice/.ssh/id_rsa': 
+
+remote: Counting objects: 3, done.
+remote: Total 3 (delta 0), reused 0 (delta 0)
+Receiving objects: 100% (3/3), done.
+
+[alice@pc]$ cd shareproject
+[alice@pc]$ ls
+readme.txt
+
+[alice@pc]$ git var -l
+...
+remote.origin.url=ssh://git@server/home/git/shareproject.git
+...
+
+[alice@pc]$ git log
+$ git log
+commit 82f40c1393aadb5c36f5e52aac0ea8908ffb33e1
+Author: kdc <kdc@knowd.co.jp>
+Date:   Sun Oct 23 23:18:36 2011 +0900
+
+    project starting point
+
+</code>
+
+alice, bob 共に、ネットワークを通じて共通のリポジトリーを持つことができました。
+<code>
+... alice ...
+[alice@pc]$ cd shareproject
+[alice@pc]$ echo "alice join" >> readme.txt
+[alice@pc]$ git add .
+[alice@pc]$ git commit -m 'alice joined'
+
+[alice@pc]$ git push
+Enter passphrase for key '/home/alice/.ssh/id_rsa': 
+Counting objects: 5, done.
+Writing objects: 100% (3/3), 265 bytes, done.
+Total 3 (delta 0), reused 0 (delta 0)
+To ssh://git@ns.knowd.co.jp:222/home/git/shareproject.git/
+   82f40c1..29b7014  master -> master
+
+
+
+... git@server ...
+[git@server]$ cd shareproject.git
+[git@server]$ git log
+commit 29b70145d664e6fe064dd71ef23bf9f0e435bd92
+    alice joined
+
+commit 82f40c1393aadb5c36f5e52aac0ea8908ffb33e1
+    project starting point
+
+
+... bob ...
+[bob@pc]$ cd shareproject/
+[bob@pc]$ git pull
+Enter passphrase for key '/home/bob/.ssh/id_rsa': 
+Updating 82f40c1..29b7014
+Fast-forward
+ readme.txt |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+[bob@pc]$ cat readme.txt 
+Hello World.
+alice join.
+
+[bob@pc]$ git log
+commit 29b70145d664e6fe064dd71ef23bf9f0e435bd92
+    alice joined
+
+commit 82f40c1393aadb5c36f5e52aac0ea8908ffb33e1
+    project starting point
+
+[bob@pc]$ echo "bob join" >> readme.txt
+[bob@pc]$ echo "bob join" >> readme.txt 
+[bob@pc]$ git add .
+[bob@pc]$ git commit -m 'bob joined'
+[master 61ac1e4] bob joined
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+[bob@pc]$ git push
+Enter passphrase for key '/home/bob/.ssh/id_rsa': 
+Counting objects: 5, done.
+Writing objects: 100% (3/3), 265 bytes, done.
+Total 3 (delta 0), reused 0 (delta 0)
+To ssh://git@ns.knowd.co.jp:222/home/git/shareproject.git/
+   29b7014..61ac1e4  master -> master
+   
+
+... git@server ...
+[git@server]$ git log
+commit 61ac1e4cffe7dc09489814224144fb9375654649
+Author: bob <bob@example.com>
+Date:   Mon Oct 24 00:24:43 2011 +0900
+
+    bob joined
+
+commit 29b70145d664e6fe064dd71ef23bf9f0e435bd92
+Author: alice <alice@lx13.example.com>
+Date:   Mon Oct 24 00:13:40 2011 +0900
+
+    alice joined
+
+commit 82f40c1393aadb5c36f5e52aac0ea8908ffb33e1
+Author: kdc <kdc@knowd.co.jp>
+Date:   Sun Oct 23 23:18:36 2011 +0900
+
+    project starting point
+
+</code>
+
+==== グループを用いた設定 ====
+各メンバーのUNIXアカウントがサーバー上にある場合、それぞれのメンバーをグループ管理し、そのグループが読み書きできる共通のディレクトリーにリポジトリーを作成します。
+
+<code>
+[server]# groupadd developers
+[server]# useradd -G developers alice
+[server]# useradd -G developers bob
+
+[server]# mkdir /var/repo
+[server]# chmod 2775 /var/repo
+[server]# su - alice
+
+[alice@server]$ cd /var/repo
+[alice@server]$ mkdir develop.git
+[alice@server]$ cd develop.git
+[alice@server]$ git init --bare --shared
+Initialized empty shared Git repository in /var/repo/develop.git/
+</code>
+
+以上で、server上に、developerグループに所属するユーザーがアクセス可能なリポジトリーが設定されました。
+ 
+SSHでserverにアクセス可能であれば、以下のようにリポジトリーをクローンできます。
+
+<code>
+[alice@pc]$ git clone ssh://server:222/var/repo/develop.git
+Initialized empty Git repository in /home/alice/develop/.git/
+Enter passphrase for key '/home/alice/.ssh/id_rsa': 
+warning: You appear to have cloned an empty repository.
+
+[alice@pc]$ cd develop/
+[alice@pc]$ echo "I'm Alice" > greeting.txt
+[alice@pc]$ git add .
+[alice@pc]$ git commit -a -m 'first greeting'
+
+[alice@pc]$ git push -u origin master
+Enter passphrase for key '/home/alice/.ssh/id_rsa': 
+Counting objects: 3, done.
+Writing objects: 100% (3/3), 222 bytes, done.
+Total 3 (delta 0), reused 0 (delta 0)
+To ssh://server/var/repo/develop.git
+ * [new branch]      master -> master
+Branch master set up to track remote branch master from origin.
+
+</code>
+server側のbareリポジトリーに記録された事を確認します。
+<code>
+[alice@server]$ cd /var/repo/develop.git
+[alice@server]$ git log
+commit 86e89c63a30b282ba9de7f1e0403ca526ce37361
+Author: alice <alice@example.com>
+Date:   Mon Oct 24 04:31:53 2011 +0900
+
+    first greeting
+
+</code>
+
+bobが情報をpull/pushできる事を確認します。
+<code>
+[bob@pc]$ git clone ssh://server2/var/repo/develop.git
+Initialized empty Git repository in /home/bob/develop/.git/
+Enter passphrase for key '/home/bob/.ssh/id_rsa': 
+remote: Counting objects: 3, done.
+remote: Total 3 (delta 0), reused 0 (delta 0)
+Receiving objects: 100% (3/3), done.
+
+[bob@pc]$ ls
+develop
+[bob@pc]$ cd develop/
+[bob@pc]$ ls
+greeting.txt
+
+[bob@pc]$ echo "I'm Bob" >> greeting.txt 
+
+[bob@pc]$ cat greeting.txt 
+I'm Alice
+I'm Bob
+
+[bob@pc]$ git commit -m 'bob, first greeting'
+[master 8058835] bob, first greeting
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+ 
+[bob@pc]$ git push
+Enter passphrase for key '/home/bob/.ssh/id_rsa': 
+Counting objects: 5, done.
+Writing objects: 100% (3/3), 259 bytes, done.
+Total 3 (delta 0), reused 0 (delta 0)
+To ssh://server/var/repo/develop.git
+   86e89c6..8058835  master -> master
+
+</code>
+
+serverでのログを確認します。
+<code>
+[alice@server]$ git log
+commit 805883544d9215bbfcc5b5613ec14528c03e3051
+Author: bob <bob@example.com>
+Date:   Mon Oct 24 04:42:13 2011 +0900
+
+    bob, first greeting
+
+commit 86e89c63a30b282ba9de7f1e0403ca526ce37361
+Author: alice <alice@example.com>
+Date:   Mon Oct 24 04:31:53 2011 +0900
+
+    first greeting
+</code>
+
+===== 他のリポジトリーとのpush/pull =====
+他に共有リポジトリーがセットアップされていれば、現在保持しているリポジトリーを別の共有リポジトリーにpushすることができます。
+
+例えば、bobは、github.comという共有リポジトリーにアクセスできると仮定します。
+
+これまでの例では、git@server が、オリジナルとなっており、bobはそこから shareproject をクローンしました。デフォルトでは、pushする先はオリジナルのgit@serverとなっていますが、これがpushできる唯一のリモートリポジトリーではありません。
+デフォルトのpush/pullのリモートURLは、originとなっており、これは、remote.origin.urlに定義されています。
+
+<code>
+[bob@pc]$ git var -l
+...
+remote.origin.url=ssh://git@server/home/git/shareproject.git/
+...
+</code>
+
+新たに、リモートリポジトリーを追加するには、remote add コマンドで行います。
+<code>
+[bob@pc]$ cd shareproject
+[bob@pc]$ git remote add github git@github.com:bob/shareproject.git
+
+[bob@pc]$ git var -l
+...
+remote.origin.url=ssh://git@server/home/git/shareproject.git/
+remote.github.url=git@github.com:bob/shareproject.git
+...
+</code>
+新たに、githubという定義が加えられます。
+github.comのshareproject.gitには、bareリポジトリーを用意しておきます。
+push/pullが可能です。
+
+<code>
+$ git push github master
+
+Counting objects: 9, done.
+Delta compression using up to 8 threads.
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (9/9), 691 bytes, done.
+Total 9 (delta 0), reused 9 (delta 0)
+To git@github.com:bob/shareproject.git
+ * [new branch]      master -> master
+Branch master set up to track remote branch master from github.
+</code>
+
+===== アップストリーム・リポジトリーのセット(--set-upstream) =====
+デフォルトでは、クローン元のリポジトリーがoriginとして定義され、デフォルトとなっていますが、複数のサイトとpush/pullを行うと、デフォルトを切り替えたくなる場合があります。
+
+masterブランチに対するデフォルトのリモートリポジトリーは、git変数のbranch.master.remoteに定義されています。この変数は、git configコマンドで変更することもできますし、pushする際に、-u (%%--set-upstream%%)オプションを指定すると、そのサイトがpush/pullする際のデフォルトのリポジトリーとなります。
+
+====== github ======
+{{ 04-git-im.png?400}}
+github.comでは、gitリポジトリーのホスティングが提供されています。
+@Todo
